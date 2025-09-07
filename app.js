@@ -6,51 +6,50 @@ class FleetManager {
         this.init();
     }
 
-    init() {
-        this.initializeData();
+    async init() {
+        await this.initializeData();
         this.setupEventListeners();
         this.checkAuthentication();
         this.loadDashboard();
     }
 
     // Inicializar datos por defecto
-    initializeData() {
-        if (!localStorage.getItem('users')) {
+    async initializeData() {
+        // Usar el adaptador de base de datos
+        this.dbAdapter = window.dbAdapter;
+        
+        const usersData = await this.dbAdapter.getItem('users');
+        if (!usersData || usersData === '[]') {
             const defaultUsers = [
                 {
                     id: 1,
                     username: 'admin',
-                    password: 'admin123',
-                    role: 'administrador',
-                    name: 'Administrador Principal',
+                password: 'admin123',
+                role: 'administrador',
+                name: 'Administrador Principal',
                     createdAt: new Date().toISOString(),
                     active: true
                 },
                 {
                     id: 2,
                     username: 'consulta',
-                    password: 'consulta123',
-                    role: 'consulta',
-                    name: 'Usuario Consulta',
+                password: 'consulta123',
+                role: 'consulta',
+                name: 'Usuario Consulta',
                     createdAt: new Date().toISOString(),
                     active: true
                 }
             ];
-            localStorage.setItem('users', JSON.stringify(defaultUsers));
+            await this.dbAdapter.setItem('users', JSON.stringify(defaultUsers));
         }
 
         // Inicializar otras estructuras de datos
-        if (!localStorage.getItem('drivers')) {
-            localStorage.setItem('drivers', JSON.stringify([]));
-        }
-        if (!localStorage.getItem('trucks')) {
-            localStorage.setItem('trucks', JSON.stringify([]));
-        }
-        if (!localStorage.getItem('operations')) {
-            localStorage.setItem('operations', JSON.stringify([]));
-        }
-        if (!localStorage.getItem('repairs')) {
-            localStorage.setItem('repairs', JSON.stringify([]));
+        const collections = ['drivers', 'trucks', 'operations', 'repairs', 'fuel', 'adblue', 'oil', 'documents'];
+        for (const collection of collections) {
+            const data = await this.dbAdapter.getItem(collection);
+            if (!data || data === 'null') {
+                await this.dbAdapter.setItem(collection, JSON.stringify([]));
+            }
         }
         if (!localStorage.getItem('fuel')) {
             localStorage.setItem('fuel', JSON.stringify([]));
@@ -70,22 +69,29 @@ class FleetManager {
     setupEventListeners() {
         // Navegación
         document.querySelectorAll('.nav-link').forEach(link => {
-            link.addEventListener('click', (e) => {
+            link.addEventListener('click', async (e) => {
                 e.preventDefault();
                 const section = link.dataset.section;
-                this.showSection(section);
+                await this.showSection(section);
             });
         });
 
         // Login/Logout
-        document.getElementById('loginForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleLogin();
-        });
+        const loginForm = document.getElementById('loginForm');
+        const logoutBtn = document.getElementById('logoutBtn');
+        
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleLogin();
+            });
+        }
 
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            this.handleLogout();
-        });
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                this.handleLogout();
+            });
+        }
 
         // Tabs
         document.querySelectorAll('.tab-button').forEach(button => {
@@ -109,8 +115,8 @@ class FleetManager {
             this.showDriverModal();
         });
 
-        document.getElementById('addTruckBtn')?.addEventListener('click', () => {
-            this.showTruckModal();
+        document.getElementById('addTruckBtn')?.addEventListener('click', async () => {
+            await this.showTruckModal();
         });
 
         // Operaciones
@@ -136,6 +142,10 @@ class FleetManager {
         });
 
         // Informes
+        document.getElementById('reportType')?.addEventListener('change', (e) => {
+            this.toggleTechnicalReviewFilters(e.target.value);
+        });
+        
         document.getElementById('generateReportBtn')?.addEventListener('click', () => {
             this.generateReport();
         });
@@ -153,8 +163,16 @@ class FleetManager {
     }
 
     handleLogin() {
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
+        const usernameElement = document.getElementById('username');
+        const passwordElement = document.getElementById('password');
+        
+        if (!usernameElement || !passwordElement) {
+            console.error('Elementos de login no encontrados');
+            return;
+        }
+        
+        const username = usernameElement.value;
+        const password = passwordElement.value;
         
         const users = JSON.parse(localStorage.getItem('users') || '[]');
         const user = users.find(u => u.username === username && u.password === password && u.active);
@@ -177,24 +195,39 @@ class FleetManager {
     }
 
     showLoginModal() {
-        document.getElementById('loginModal').classList.add('active');
+        const loginModal = document.getElementById('loginModal');
+        if (loginModal) {
+            loginModal.classList.add('active');
+        }
     }
 
     hideLoginModal() {
-        document.getElementById('loginModal').classList.remove('active');
-        document.getElementById('loginForm').reset();
+        const loginModal = document.getElementById('loginModal');
+        const loginForm = document.getElementById('loginForm');
+        
+        if (loginModal) {
+            loginModal.classList.remove('active');
+        }
+        if (loginForm) {
+            loginForm.reset();
+        }
     }
 
     updateUserInterface() {
         if (this.currentUser) {
-            document.getElementById('currentUser').textContent = `Usuario: ${this.currentUser.name}`;
+            const currentUserElement = document.getElementById('currentUser');
+            if (currentUserElement) {
+                currentUserElement.textContent = `Usuario: ${this.currentUser.name}`;
+            }
             
             // Mostrar/ocultar opción de usuarios según rol
             const usuariosNav = document.getElementById('usuarios-nav');
-            if (this.currentUser.role === 'administrador') {
-                usuariosNav.style.display = 'block';
-            } else {
-                usuariosNav.style.display = 'none';
+            if (usuariosNav) {
+                if (this.currentUser.role === 'administrador') {
+                    usuariosNav.style.display = 'block';
+                } else {
+                    usuariosNav.style.display = 'none';
+                }
             }
             
             // Ocultar botones según permisos
@@ -207,7 +240,7 @@ class FleetManager {
     }
 
     // Navegación
-    showSection(sectionName) {
+    async showSection(sectionName) {
         // Ocultar todas las secciones
         document.querySelectorAll('.content-section').forEach(section => {
             section.classList.remove('active');
@@ -225,7 +258,7 @@ class FleetManager {
         this.currentSection = sectionName;
         
         // Cargar datos de la sección
-        this.loadSectionData(sectionName);
+        await this.loadSectionData(sectionName);
     }
 
     switchTab(tabName, section) {
@@ -240,7 +273,7 @@ class FleetManager {
     }
 
     // Cargar datos de secciones
-    loadSectionData(sectionName) {
+    async loadSectionData(sectionName) {
         switch(sectionName) {
             case 'dashboard':
                 this.loadDashboard();
@@ -249,7 +282,7 @@ class FleetManager {
                 this.loadUsers();
                 break;
             case 'flota':
-                this.loadFleet();
+                await this.loadFleet();
                 break;
             case 'operaciones':
                 this.loadOperations();
@@ -498,6 +531,44 @@ class FleetManager {
             }
         });
         
+        // Alertas de licencias de conducir
+        const drivers = JSON.parse(localStorage.getItem('drivers') || '[]');
+        drivers.forEach(driver => {
+            if (driver.licenseExpiry) {
+                const licenseDate = new Date(driver.licenseExpiry);
+                const daysUntilExpiry = Math.ceil((licenseDate - today) / (1000 * 60 * 60 * 24));
+                
+                if (daysUntilExpiry < 0) {
+                    alerts.push({
+                        type: 'danger',
+                        category: 'licencia',
+                        driver: driver.name,
+                        message: `Licencia de conducir de ${driver.name} VENCIDA hace ${Math.abs(daysUntilExpiry)} días`,
+                        priority: 'critical',
+                        driverId: driver.id
+                    });
+                } else if (daysUntilExpiry <= 7) {
+                    alerts.push({
+                        type: 'danger',
+                        category: 'licencia',
+                        driver: driver.name,
+                        message: `Licencia de conducir de ${driver.name} vence en ${daysUntilExpiry} días`,
+                        priority: 'high',
+                        driverId: driver.id
+                    });
+                } else if (daysUntilExpiry <= 30) {
+                    alerts.push({
+                        type: 'warning',
+                        category: 'licencia',
+                        driver: driver.name,
+                        message: `Licencia de conducir de ${driver.name} vence en ${daysUntilExpiry} días`,
+                        priority: 'medium',
+                        driverId: driver.id
+                    });
+                }
+            }
+        });
+        
         // Ordenar alertas por prioridad
         const priorityOrder = { 'critical': 0, 'high': 1, 'medium': 2, 'low': 3 };
         alerts.sort((a, b) => {
@@ -594,12 +665,15 @@ class FleetManager {
             </div>
         `;
         
-        document.getElementById('modalContainer').innerHTML = modalHTML;
+        if (!this.showModal(modalHTML)) return;
         
-        document.getElementById('userForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.saveUser(userId);
-        });
+        const userForm = document.getElementById('userForm');
+        if (userForm) {
+            userForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveUser(userId);
+            });
+        }
     }
 
     saveUser(userId = null) {
@@ -664,23 +738,35 @@ class FleetManager {
     }
 
     // Gestión de Flota
-    loadFleet() {
-        this.loadDrivers();
-        this.loadTrucks();
+    async loadFleet() {
+        await this.loadDrivers();
+        await this.loadTrucks();
     }
 
-    loadDrivers() {
-        const drivers = this.db ? this.db.getAll('drivers') : JSON.parse(localStorage.getItem('drivers') || '[]');
-        const trucks = this.db ? this.db.getAll('trucks') : JSON.parse(localStorage.getItem('trucks') || '[]');
+    async loadDrivers() {
+        const driversData = await this.dbAdapter.getItem('drivers');
+        const trucksData = await this.dbAdapter.getItem('trucks');
+        const drivers = JSON.parse(driversData || '[]');
+        const trucks = JSON.parse(trucksData || '[]');
         const tbody = document.querySelector('#driversTable tbody');
         
         tbody.innerHTML = drivers.map(driver => {
             const assignedTruck = trucks.find(t => t.driverId === driver.id);
+            const licenseExpiry = driver.licenseExpiry ? new Date(driver.licenseExpiry) : null;
+            const isLicenseExpired = licenseExpiry && licenseExpiry < new Date();
+            const isLicenseExpiringSoon = licenseExpiry && licenseExpiry <= new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+            
             return `
                 <tr>
                     <td>${driver.name}</td>
                     <td>${driver.rut}</td>
                     <td>${new Date(driver.hireDate).toLocaleDateString()}</td>
+                    <td>${driver.licenseNumber || 'No registrado'}</td>
+                    <td class="${isLicenseExpired ? 'expired' : isLicenseExpiringSoon ? 'expiring-soon' : ''}">
+                        ${licenseExpiry ? licenseExpiry.toLocaleDateString() : 'No registrado'}
+                        ${isLicenseExpired ? ' <span class="alert-badge">VENCIDA</span>' : ''}
+                        ${isLicenseExpiringSoon && !isLicenseExpired ? ' <span class="warning-badge">PRÓXIMO A VENCER</span>' : ''}
+                    </td>
                     <td>${assignedTruck ? `Camión ${assignedTruck.number}` : 'Sin asignar'}</td>
                     <td class="action-buttons">
                         ${this.currentUser.role === 'administrador' ? `
@@ -693,9 +779,9 @@ class FleetManager {
         }).join('');
     }
 
-    loadTrucks() {
-        const trucks = this.db ? this.db.getAll('trucks') : JSON.parse(localStorage.getItem('trucks') || '[]');
-        const drivers = this.db ? this.db.getAll('drivers') : JSON.parse(localStorage.getItem('drivers') || '[]');
+    async loadTrucks() {
+        const trucks = await dbAdapter.getAll('trucks');
+        const drivers = await dbAdapter.getAll('drivers');
         const tbody = document.querySelector('#trucksTable tbody');
         
         tbody.innerHTML = trucks.map(truck => {
@@ -741,6 +827,14 @@ class FleetManager {
                             <input type="date" id="driverHireDate" value="${driver?.hireDate || ''}" required>
                         </div>
                         <div class="form-group">
+                            <label for="driverLicense">Número de Licencia:</label>
+                            <input type="text" id="driverLicense" value="${driver?.licenseNumber || ''}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="driverLicenseExpiry">Vencimiento de Licencia:</label>
+                            <input type="date" id="driverLicenseExpiry" value="${driver?.licenseExpiry || ''}" required>
+                        </div>
+                        <div class="form-group">
                             <button type="submit" class="btn-primary">${driver ? 'Actualizar' : 'Crear'} Conductor</button>
                             <button type="button" class="btn-secondary" onclick="fleetManager.closeModal()">Cancelar</button>
                         </div>
@@ -749,23 +843,30 @@ class FleetManager {
             </div>
         `;
         
-        document.getElementById('modalContainer').innerHTML = modalHTML;
+        if (!this.showModal(modalHTML)) return;
         
-        document.getElementById('driverForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.saveDriver(driverId);
-        });
+        const driverForm = document.getElementById('driverForm');
+        if (driverForm) {
+            driverForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveDriver(driverId);
+            });
+        }
     }
 
-    saveDriver(driverId = null) {
+    async saveDriver(driverId = null) {
         const name = document.getElementById('driverName').value;
         const rut = document.getElementById('driverRut').value;
         const hireDate = document.getElementById('driverHireDate').value;
+        const licenseNumber = document.getElementById('driverLicense').value;
+        const licenseExpiry = document.getElementById('driverLicenseExpiry').value;
         
         const driverData = {
             name,
             rut,
             hireDate,
+            licenseNumber,
+            licenseExpiry,
             updatedAt: new Date().toISOString()
         };
         
@@ -776,24 +877,24 @@ class FleetManager {
             driverData.createdAt = new Date().toISOString();
         }
         
-        if (this.db) {
-            this.db.save('drivers', driverData);
-        } else {
-            // Fallback a localStorage
-            const drivers = JSON.parse(localStorage.getItem('drivers') || '[]');
-            if (driverId) {
-                const driverIndex = drivers.findIndex(d => d.id === driverId);
-                if (driverIndex !== -1) {
-                    drivers[driverIndex] = driverData;
-                }
-            } else {
-                drivers.push(driverData);
+        // Obtener conductores actuales
+        const driversData = await this.dbAdapter.getItem('drivers');
+        const drivers = JSON.parse(driversData || '[]');
+        
+        if (driverId) {
+            const driverIndex = drivers.findIndex(d => d.id === driverId);
+            if (driverIndex !== -1) {
+                drivers[driverIndex] = driverData;
             }
-            localStorage.setItem('drivers', JSON.stringify(drivers));
+        } else {
+            drivers.push(driverData);
         }
         
+        // Guardar en la base de datos
+        await this.dbAdapter.setItem('drivers', JSON.stringify(drivers));
+        
         this.closeModal();
-        this.loadDrivers();
+        await this.loadDrivers();
     }
 
     editDriver(driverId) {
@@ -814,9 +915,10 @@ class FleetManager {
         }
     }
 
-    showTruckModal(truckId = null) {
-        const truck = truckId ? (this.db ? this.db.getById('trucks', truckId) : JSON.parse(localStorage.getItem('trucks') || '[]').find(t => t.id === truckId)) : null;
-        const drivers = this.db ? this.db.getAll('drivers') : JSON.parse(localStorage.getItem('drivers') || '[]');
+    async showTruckModal(truckId = null) {
+        const trucks = await dbAdapter.getAll('trucks');
+        const truck = truckId ? trucks.find(t => t.id === truckId) : null;
+        const drivers = await dbAdapter.getAll('drivers');
         
         const modalHTML = `
             <div class="modal active">
@@ -889,13 +991,13 @@ class FleetManager {
         
         document.getElementById('modalContainer').innerHTML = modalHTML;
         
-        document.getElementById('truckForm').addEventListener('submit', (e) => {
+        document.getElementById('truckForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            this.saveTruck(truckId);
+            await this.saveTruck(truckId);
         });
     }
 
-    saveTruck(truckId = null) {
+    async saveTruck(truckId = null) {
         const number = document.getElementById('truckNumber').value;
         const brand = document.getElementById('truckBrand').value;
         const model = document.getElementById('truckModel').value;
@@ -930,41 +1032,35 @@ class FleetManager {
             truckData.createdAt = new Date().toISOString();
         }
         
-        if (this.db) {
-            this.db.save('trucks', truckData);
-        } else {
-            // Fallback a localStorage
-            const trucks = JSON.parse(localStorage.getItem('trucks') || '[]');
-            if (truckId) {
-                const truckIndex = trucks.findIndex(t => t.id === truckId);
-                if (truckIndex !== -1) {
-                    trucks[truckIndex] = truckData;
-                }
-            } else {
-                trucks.push(truckData);
+        // Obtener camiones existentes usando dbAdapter
+        const trucks = await dbAdapter.getAll('trucks');
+        
+        if (truckId) {
+            const truckIndex = trucks.findIndex(t => t.id === truckId);
+            if (truckIndex !== -1) {
+                trucks[truckIndex] = truckData;
             }
-            localStorage.setItem('trucks', JSON.stringify(trucks));
+        } else {
+            trucks.push(truckData);
         }
         
+        // Guardar usando dbAdapter
+        await dbAdapter.saveAll('trucks', trucks);
+        
         this.closeModal();
-        this.loadTrucks();
+        await this.loadTrucks();
     }
 
-    editTruck(truckId) {
-        this.showTruckModal(truckId);
+    async editTruck(truckId) {
+        await this.showTruckModal(truckId);
     }
 
-    deleteTruck(truckId) {
+    async deleteTruck(truckId) {
         if (confirm('¿Está seguro de eliminar este camión?')) {
-            if (this.db) {
-                this.db.delete('trucks', truckId);
-            } else {
-                // Fallback a localStorage
-                const trucks = JSON.parse(localStorage.getItem('trucks') || '[]');
-                const filteredTrucks = trucks.filter(t => t.id !== truckId);
-                localStorage.setItem('trucks', JSON.stringify(filteredTrucks));
-            }
-            this.loadTrucks();
+            const trucks = await dbAdapter.getAll('trucks');
+            const filteredTrucks = trucks.filter(t => t.id !== truckId);
+            await dbAdapter.saveAll('trucks', filteredTrucks);
+            await this.loadTrucks();
         }
     }
 
@@ -1213,7 +1309,7 @@ class FleetManager {
             }
         } else {
             const newOperation = {
-                id: Date.now(),
+                id: Date.now() + Math.random().toString(36).substr(2, 9),
                 month,
                 truckId,
                 products,
@@ -1450,7 +1546,7 @@ class FleetManager {
                     <td>${repair.observations}</td>
                     <td>$${repair.cost?.toLocaleString() || 0}</td>
                     <td>${repair.km?.toLocaleString() || 0} km</td>
-                    <td>${repair.photos ? '<i class="fas fa-image text-success"></i>' : '<i class="fas fa-times text-danger"></i>'}</td>
+                    <td>${repair.photos ? '<a href="#" onclick="fleetManager.viewInvoice(\'repair\', ' + repair.id + ')" style="color: #28a745; text-decoration: none;"><i class="fas fa-image text-success"></i></a>' : '<i class="fas fa-times text-danger"></i>'}</td>
                     <td class="action-buttons">
                         ${this.currentUser.role === 'administrador' ? `
                             <button class="btn-edit" onclick="fleetManager.editRepair(${repair.id})"><i class="fas fa-edit"></i></button>
@@ -1541,7 +1637,7 @@ class FleetManager {
             }
         } else {
             const newRepair = {
-                id: Date.now(),
+                id: Date.now() + Math.random().toString(36).substr(2, 9),
                 date,
                 truckId,
                 observations,
@@ -1578,7 +1674,6 @@ class FleetManager {
         
         tbody.innerHTML = fuelRecords.map(fuel => {
             const truck = trucks.find(t => t.id === fuel.truckId);
-            const efficiency = fuel.km && fuel.liters ? (fuel.km / fuel.liters).toFixed(2) : 'N/A';
             return `
                 <tr>
                     <td>${new Date(fuel.date).toLocaleDateString()}</td>
@@ -1586,7 +1681,7 @@ class FleetManager {
                     <td>${fuel.liters} L</td>
                     <td>$${fuel.cost?.toLocaleString() || 0}</td>
                     <td>${fuel.km?.toLocaleString() || 0} km</td>
-                    <td>${efficiency} km/L</td>
+                    <td>${fuel.invoice ? '<a href="#" onclick="fleetManager.viewInvoice(\'fuel\', ' + fuel.id + ')" style="color: #28a745; text-decoration: none;"><i class="fas fa-image text-success"></i></a>' : '<i class="fas fa-times text-danger"></i>'}</td>
                     <td class="action-buttons">
                         ${this.currentUser.role === 'administrador' ? `
                             <button class="btn-edit" onclick="fleetManager.editFuel(${fuel.id})"><i class="fas fa-edit"></i></button>
@@ -1682,6 +1777,10 @@ class FleetManager {
                         <div class="form-group">
                             <label for="fuelKm">Kilometraje:</label>
                             <input type="number" id="fuelKm" value="${fuel?.km || ''}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="fuelInvoice">Adjuntar Factura:</label>
+                            <input type="file" id="fuelInvoice" accept="image/*">
                         </div>
                         <div class="form-group">
                             <button type="submit" class="btn-primary">${fuel ? 'Actualizar' : 'Registrar'} Combustible</button>
@@ -1819,19 +1918,20 @@ class FleetManager {
         const liters = parseFloat(document.getElementById('fuelLiters').value);
         const cost = parseInt(document.getElementById('fuelCost').value);
         const km = parseInt(document.getElementById('fuelKm').value);
+        const invoice = document.getElementById('fuelInvoice').files.length > 0;
         
         if (fuelId) {
             const fuelIndex = fuelRecords.findIndex(f => f.id === fuelId);
             if (fuelIndex !== -1) {
                 fuelRecords[fuelIndex] = {
                     ...fuelRecords[fuelIndex],
-                    date, truckId, liters, cost, km
+                    date, truckId, liters, cost, km, invoice
                 };
             }
         } else {
             const newFuel = {
-                id: Date.now(),
-                date, truckId, liters, cost, km,
+                id: Date.now() + Math.random().toString(36).substr(2, 9),
+                date, truckId, liters, cost, km, invoice,
                 createdAt: new Date().toISOString()
             };
             fuelRecords.push(newFuel);
@@ -1873,7 +1973,7 @@ class FleetManager {
             }
         } else {
             const newAdBlue = {
-                id: Date.now(),
+                id: Date.now() + Math.random().toString(36).substr(2, 9),
                 date, truckId, liters, cost, km,
                 createdAt: new Date().toISOString()
             };
@@ -1917,7 +2017,7 @@ class FleetManager {
             }
         } else {
             const newOil = {
-                id: Date.now(),
+                id: Date.now() + Math.random().toString(36).substr(2, 9),
                 date, truckId, type, liters, cost, km,
                 createdAt: new Date().toISOString()
             };
@@ -1956,19 +2056,15 @@ class FleetManager {
 
     loadDocumentManager() {
         const trucks = JSON.parse(localStorage.getItem('trucks') || '[]');
-        const documentContainer = document.getElementById('documentManager');
+        const documentsSection = document.getElementById('documentos');
+        let documentManager = documentsSection.querySelector('.document-manager');
         
-        if (!documentContainer) {
+        if (!documentManager) {
             // Crear contenedor si no existe
-            const documentsSection = document.getElementById('documentos');
             const managerHTML = `
                 <div class="document-manager">
-                    <h3><i class="fas fa-folder-open"></i> Gestión de Documentos</h3>
-                    <div class="document-controls">
-                        <select id="truckSelector">
-                            <option value="">Seleccionar camión</option>
-                            ${trucks.map(truck => `<option value="${truck.id}">Camión ${truck.number}</option>`).join('')}
-                        </select>
+                    <div class="document-header">
+                        <h3><i class="fas fa-folder-open"></i> Gestion de Documentos</h3>
                         <button id="uploadDocumentBtn" class="btn-primary">
                             <i class="fas fa-upload"></i> Subir Documento
                         </button>
@@ -1978,28 +2074,33 @@ class FleetManager {
                     </div>
                 </div>
             `;
-            documentsSection.insertAdjacentHTML('beforeend', managerHTML);
+            documentsSection.insertAdjacentHTML('afterbegin', managerHTML);
             
             // Configurar eventos
-            document.getElementById('truckSelector').addEventListener('change', (e) => {
-                this.loadTruckDocuments(e.target.value);
-            });
+            const uploadDocumentBtn = document.getElementById('uploadDocumentBtn');
             
-            document.getElementById('uploadDocumentBtn').addEventListener('click', () => {
-                this.showDocumentUploadModal();
-            });
+            if (uploadDocumentBtn) {
+                uploadDocumentBtn.addEventListener('click', () => {
+                    this.showDocumentUploadModal();
+                });
+            }
         }
     }
 
     loadTruckDocuments(truckId) {
+        const documentList = document.getElementById('documentList');
+        if (!documentList) {
+            console.error('Elemento documentList no encontrado');
+            return;
+        }
+        
         if (!truckId) {
-            document.getElementById('documentList').innerHTML = '<p>Seleccione un camión para ver sus documentos</p>';
+            documentList.innerHTML = '<p>Seleccione un camión para ver sus documentos</p>';
             return;
         }
         
         const documents = JSON.parse(localStorage.getItem('truckDocuments') || '[]');
         const truckDocuments = documents.filter(doc => doc.truckId === parseInt(truckId));
-        const documentList = document.getElementById('documentList');
         
         if (truckDocuments.length === 0) {
             documentList.innerHTML = '<p>No hay documentos registrados para este camión</p>';
@@ -2054,7 +2155,6 @@ class FleetManager {
                                 <option value="Revisión Técnica" ${document?.type === 'Revisión Técnica' ? 'selected' : ''}>Revisión Técnica</option>
                                 <option value="Seguro Obligatorio" ${document?.type === 'Seguro Obligatorio' ? 'selected' : ''}>Seguro Obligatorio</option>
                                 <option value="Impuestos Municipales" ${document?.type === 'Impuestos Municipales' ? 'selected' : ''}>Impuestos Municipales</option>
-                                <option value="Licencia de Conducir" ${document?.type === 'Licencia de Conducir' ? 'selected' : ''}>Licencia de Conducir</option>
                                 <option value="Certificado de Gases" ${document?.type === 'Certificado de Gases' ? 'selected' : ''}>Certificado de Gases</option>
                                 <option value="Otro" ${document?.type === 'Otro' ? 'selected' : ''}>Otro</option>
                             </select>
@@ -2065,7 +2165,7 @@ class FleetManager {
                         </div>
                         <div class="form-group">
                             <label for="docFile">Archivo (PDF, JPG, PNG):</label>
-                            <input type="file" id="docFile" accept=".pdf,.jpg,.jpeg,.png" ${!document ? 'required' : ''}>
+                            <input type="file" id="docFile" accept=".pdf,.jpg,.jpeg,.png">
                         </div>
                         <div class="form-group">
                             <label for="docNotes">Notas:</label>
@@ -2080,21 +2180,35 @@ class FleetManager {
             </div>
         `;
         
-        document.getElementById('modalContainer').innerHTML = modalHTML;
+        if (!this.showModal(modalHTML)) return;
         
-        document.getElementById('documentForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.saveDocument(documentId);
-        });
+        const documentForm = document.getElementById('documentForm');
+        if (documentForm) {
+            documentForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveDocument(documentId);
+            });
+        }
     }
 
     saveDocument(documentId = null) {
         const documents = JSON.parse(localStorage.getItem('truckDocuments') || '[]');
-        const truckId = parseInt(document.getElementById('docTruck').value);
-        const type = document.getElementById('docType').value;
-        const expiryDate = document.getElementById('docExpiryDate').value;
-        const notes = document.getElementById('docNotes').value;
+        
+        const docTruckEl = document.getElementById('docTruck');
+        const docTypeEl = document.getElementById('docType');
+        const docExpiryDateEl = document.getElementById('docExpiryDate');
+        const docNotesEl = document.getElementById('docNotes');
         const fileInput = document.getElementById('docFile');
+        
+        if (!docTruckEl || !docTypeEl || !docExpiryDateEl || !docNotesEl || !fileInput) {
+            console.error('Required form elements not found');
+            return;
+        }
+        
+        const truckId = parseInt(docTruckEl.value);
+        const type = docTypeEl.value;
+        const expiryDate = docExpiryDateEl.value;
+        const notes = docNotesEl.value;
         
         // Simular subida de archivo (en una aplicación real se subiría a un servidor)
         let fileUrl = null;
@@ -2113,7 +2227,7 @@ class FleetManager {
             }
         } else {
             const newDocument = {
-                id: Date.now(),
+                id: Date.now() + Math.random().toString(36).substr(2, 9),
                 truckId, type, expiryDate, notes, fileUrl,
                 uploadDate: new Date().toISOString()
             };
@@ -2136,11 +2250,8 @@ class FleetManager {
             const filteredDocuments = documents.filter(d => d.id !== documentId);
             localStorage.setItem('truckDocuments', JSON.stringify(filteredDocuments));
             
-            const selectedTruck = document.getElementById('truckSelector').value;
-            if (selectedTruck) {
-                this.loadTruckDocuments(selectedTruck);
-            }
-            this.loadDocuments(); // Recargar alertas
+            // Recargar la lista de documentos y alertas
+            this.loadDocuments();
         }
     }
 
@@ -2177,7 +2288,7 @@ class FleetManager {
         const notifications = JSON.parse(localStorage.getItem('notifications') || '[]');
         criticalAlerts.forEach(alert => {
             notifications.push({
-                id: Date.now() + Math.random(),
+                id: Date.now() + Math.random().toString(36).substr(2, 9),
                 message: alert.message,
                 type: alert.type,
                 category: alert.category,
@@ -2253,52 +2364,221 @@ class FleetManager {
     }
 
     setupReportEventListeners() {
-        document.getElementById('reportType')?.addEventListener('change', (e) => {
-            this.updateReportOptions(e.target.value);
+        // Event listeners para las opciones de informes
+        document.querySelectorAll('.report-option').forEach(option => {
+            option.addEventListener('click', (e) => {
+                const reportType = e.currentTarget.dataset.type;
+                this.selectReportType(reportType);
+            });
         });
         
-        document.getElementById('reportPeriod')?.addEventListener('change', () => {
-            this.updateDateRanges();
+        // Event listener para cerrar el panel de configuración
+        document.getElementById('closeConfigPanel')?.addEventListener('click', () => {
+            this.closeReportConfigPanel();
+        });
+        
+        // Event listener para cambio de período
+        document.getElementById('reportPeriod')?.addEventListener('change', (e) => {
+            this.handlePeriodChange(e.target.value);
+        });
+        
+        // Event listener para generar informe
+        document.getElementById('generateReportBtn')?.addEventListener('click', () => {
+            this.generateSelectedReport();
         });
     }
 
-    updateReportOptions(reportType) {
+    // Nuevas funciones para el sistema de informes mejorado
+    selectReportType(reportType) {
+        this.currentReportType = reportType;
+        
+        // Mostrar el panel de configuración
+        const configPanel = document.getElementById('reportConfigPanel');
+        configPanel.style.display = 'block';
+        
+        // Actualizar el título del informe seleccionado
+        const titles = {
+            'individual': 'Informe Individual por Camión',
+            'comparative': 'Informe Comparativo de Flota',
+            'driver': 'Informe de Rendimiento por Conductor',
+            'financial': 'Informe Financiero',
+            'maintenance': 'Informe de Mantenimiento',
+            'fuel': 'Informe de Consumo de Combustible',
+            'technical-review': 'Informe de Revisiones Técnicas',
+            'documents': 'Estado de Documentos',
+            'alerts': 'Alertas y Vencimientos'
+        };
+        
+        const selectedReportTitle = document.getElementById('selectedReportTitle');
+        if (selectedReportTitle) {
+            selectedReportTitle.textContent = titles[reportType] || 'Configurar Informe';
+        }
+        
+        // Mostrar/ocultar filtros específicos según el tipo de informe
+        this.updateReportFilters(reportType);
+        
+        // Scroll al panel de configuración
+        configPanel.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    closeReportConfigPanel() {
+        const reportConfigPanel = document.getElementById('reportConfigPanel');
+        if (reportConfigPanel) {
+            reportConfigPanel.style.display = 'none';
+        }
+        this.currentReportType = null;
+    }
+    
+    updateReportFilters(reportType) {
         const truckFilter = document.getElementById('truckFilter');
         const driverFilter = document.getElementById('driverFilter');
+        const technicalReviewFilters = document.getElementById('technicalReviewFilters');
         
-        if (reportType === 'individual' || reportType === 'comparative') {
-            truckFilter.style.display = 'block';
-            driverFilter.style.display = reportType === 'comparative' ? 'block' : 'none';
-        } else if (reportType === 'driver') {
-            truckFilter.style.display = 'none';
-            driverFilter.style.display = 'block';
+        // Ocultar todos los filtros primero
+        if (truckFilter) truckFilter.style.display = 'none';
+        if (driverFilter) driverFilter.style.display = 'none';
+        if (technicalReviewFilters) technicalReviewFilters.style.display = 'none';
+        
+        // Mostrar filtros según el tipo de informe
+        switch(reportType) {
+            case 'individual':
+            case 'maintenance':
+            case 'fuel':
+                if (truckFilter) truckFilter.style.display = 'block';
+                break;
+            case 'comparative':
+                if (truckFilter) truckFilter.style.display = 'block';
+                if (driverFilter) driverFilter.style.display = 'block';
+                break;
+            case 'driver':
+                if (driverFilter) driverFilter.style.display = 'block';
+                break;
+            case 'technical-review':
+                if (technicalReviewFilters) technicalReviewFilters.style.display = 'block';
+                break;
         }
     }
-
-    updateDateRanges() {
-        const period = document.getElementById('reportPeriod').value;
+    
+    handlePeriodChange(period) {
+        const customDateRange = document.getElementById('customDateRange');
         const startDate = document.getElementById('startDate');
         const endDate = document.getElementById('endDate');
         
+        if (period === 'custom') {
+            customDateRange.style.display = 'block';
+        } else {
+            customDateRange.style.display = 'none';
+            this.setDateRangeByPeriod(period, startDate, endDate);
+        }
+    }
+    
+    setDateRangeByPeriod(period, startDate, endDate) {
         const today = new Date();
-        if (period === 'monthly') {
-            const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-            const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-            startDate.value = firstDay.toISOString().split('T')[0];
-            endDate.value = lastDay.toISOString().split('T')[0];
-        } else if (period === 'yearly') {
-            const firstDay = new Date(today.getFullYear(), 0, 1);
-            const lastDay = new Date(today.getFullYear(), 11, 31);
-            startDate.value = firstDay.toISOString().split('T')[0];
-            endDate.value = lastDay.toISOString().split('T')[0];
+        let start, end;
+        
+        switch(period) {
+            case 'current-month':
+                start = new Date(today.getFullYear(), today.getMonth(), 1);
+                end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                break;
+            case 'last-month':
+                start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                end = new Date(today.getFullYear(), today.getMonth(), 0);
+                break;
+            case 'last-3-months':
+                start = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+                end = today;
+                break;
+            case 'last-6-months':
+                start = new Date(today.getFullYear(), today.getMonth() - 6, 1);
+                end = today;
+                break;
+            case 'current-year':
+                start = new Date(today.getFullYear(), 0, 1);
+                end = new Date(today.getFullYear(), 11, 31);
+                break;
+            default:
+                start = new Date(today.getFullYear(), today.getMonth(), 1);
+                end = today;
+        }
+        
+        if (startDate) startDate.value = start.toISOString().split('T')[0];
+        if (endDate) endDate.value = end.toISOString().split('T')[0];
+    }
+    
+    generateSelectedReport() {
+        if (!this.currentReportType) {
+            alert('Por favor selecciona un tipo de informe');
+            return;
+        }
+        
+        const filters = this.getReportFilters();
+        
+        switch(this.currentReportType) {
+            case 'individual':
+                this.generateIndividualReport(filters);
+                break;
+            case 'comparative':
+                this.generateComparativeReport(filters);
+                break;
+            case 'driver':
+                this.generateDriverReport(filters);
+                break;
+            case 'financial':
+                this.generateFinancialReport(filters);
+                break;
+            case 'maintenance':
+                this.generateMaintenanceReport(filters);
+                break;
+            case 'fuel':
+                this.generateFuelReport(filters);
+                break;
+            case 'technical-review':
+                this.generateTechnicalReviewReport();
+                break;
+            case 'documents':
+                this.generateDocumentsReport();
+                break;
+            case 'alerts':
+                this.generateAlertsReport();
+                break;
+        }
+        
+        // Mostrar botón de exportar
+        const exportReportBtn = document.getElementById('exportReportBtn');
+        if (exportReportBtn) {
+            exportReportBtn.style.display = 'inline-block';
+        }
+    }
+    
+    getReportFilters() {
+        const reportPeriod = document.getElementById('reportPeriod')?.value;
+        const startDate = document.getElementById('startDate')?.value;
+        const endDate = document.getElementById('endDate')?.value;
+        const truckId = document.getElementById('reportTruck')?.value;
+        const driverId = document.getElementById('reportDriver')?.value;
+        
+        return { reportPeriod, startDate, endDate, truckId, driverId };
+    }
+
+    toggleTechnicalReviewFilters(reportType) {
+        const filtersDiv = document.getElementById('technicalReviewFilters');
+        if (filtersDiv) {
+            filtersDiv.style.display = reportType === 'technical-review' ? 'block' : 'none';
         }
     }
 
     generateReport() {
-        const reportType = document.getElementById('reportType').value;
-        const reportPeriod = document.getElementById('reportPeriod').value;
-        const startDate = document.getElementById('startDate').value;
-        const endDate = document.getElementById('endDate').value;
+        const reportTypeElement = document.getElementById('reportType');
+        if (!reportTypeElement) {
+            console.error('Elemento reportType no encontrado');
+            return;
+        }
+        
+        const reportType = reportTypeElement.value;
+        const reportPeriod = document.getElementById('reportPeriod')?.value;
+        const startDate = document.getElementById('startDate')?.value;
+        const endDate = document.getElementById('endDate')?.value;
         const truckId = document.getElementById('reportTruck')?.value;
         const driverId = document.getElementById('reportDriver')?.value;
         
@@ -2316,6 +2596,9 @@ class FleetManager {
                 break;
             case 'financial':
                 this.generateFinancialReport(filters);
+                break;
+            case 'technical-review':
+                this.generateTechnicalReviewReport();
                 break;
         }
     }
@@ -2926,9 +3209,424 @@ class FleetManager {
         };
     }
 
+    async generateTechnicalReviewReport() {
+        const filterValue = document.getElementById('technicalReviewFilter')?.value || 'all';
+        const trucks = await this.dbAdapter.getAll('trucks');
+        const today = new Date();
+        
+        let filteredTrucks = trucks.filter(truck => truck.technicalReview);
+        
+        // Calcular días restantes para cada camión
+        filteredTrucks = filteredTrucks.map(truck => {
+            const reviewDate = new Date(truck.technicalReview);
+            const diffTime = reviewDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return { ...truck, daysRemaining: diffDays };
+        });
+        
+        // Aplicar filtros
+        switch(filterValue) {
+            case 'expiring':
+                filteredTrucks = filteredTrucks.filter(truck => truck.daysRemaining > 0 && truck.daysRemaining <= 15);
+                break;
+            case 'expired':
+                filteredTrucks = filteredTrucks.filter(truck => truck.daysRemaining < 0);
+                break;
+            // 'all' no necesita filtro adicional
+        }
+        
+        // Ordenar por días restantes (menor a mayor)
+        filteredTrucks.sort((a, b) => a.daysRemaining - b.daysRemaining);
+        
+        this.displayTechnicalReviewReport(filteredTrucks, filterValue);
+    }
+    
+    displayTechnicalReviewReport(trucks, filterType) {
+        const reportResults = document.getElementById('reportResults');
+        
+        const filterTitles = {
+            'all': 'Todas las Revisiones Técnicas',
+            'expiring': 'Revisiones Próximas a Vencer (15 días)',
+            'expired': 'Revisiones Vencidas'
+        };
+        
+        const reportHTML = `
+            <div class="report-section">
+                <h3><i class="fas fa-clipboard-check"></i> ${filterTitles[filterType]}</h3>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Camión</th>
+                                <th>Patente</th>
+                                <th>Fecha de Revisión</th>
+                                <th>Estado</th>
+                                <th>Días Restantes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${this.generateTechnicalReviewRows(trucks)}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="report-summary">
+                    <p><strong>Total de camiones:</strong> ${trucks.length}</p>
+                </div>
+            </div>
+        `;
+        
+        reportResults.innerHTML = reportHTML;
+    }
+    
+    generateTechnicalReviewRows(trucks) {
+        if (trucks.length === 0) {
+            return '<tr><td colspan="5" class="no-data">No hay revisiones técnicas que coincidan con el filtro seleccionado</td></tr>';
+        }
+        
+        return trucks.map(truck => {
+            const reviewDate = new Date(truck.technicalReview);
+            const formattedDate = reviewDate.toLocaleDateString('es-CL');
+            
+            let statusClass = '';
+            let statusText = '';
+            
+            if (truck.daysRemaining < 0) {
+                statusClass = 'expired';
+                statusText = 'Vencida';
+            } else if (truck.daysRemaining <= 15) {
+                statusClass = 'expiring';
+                statusText = 'Por vencer';
+            } else {
+                statusClass = 'valid';
+                statusText = 'Vigente';
+            }
+            
+            const daysText = truck.daysRemaining < 0 ? 
+                `${Math.abs(truck.daysRemaining)} días vencida` : 
+                `${truck.daysRemaining} días restantes`;
+            
+            return `
+                <tr>
+                    <td>Camión ${truck.number}</td>
+                    <td>${truck.plate}</td>
+                    <td>${formattedDate}</td>
+                    <td><span class="status ${statusClass}">${statusText}</span></td>
+                    <td class="${statusClass}">${daysText}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+    
+    generateMaintenanceReport(filters) {
+        const repairs = this.getFilteredRepairRecords(filters);
+        const totalCost = repairs.reduce((sum, repair) => sum + (repair.cost || 0), 0);
+        const avgCost = repairs.length > 0 ? totalCost / repairs.length : 0;
+        
+        const resultsContainer = document.getElementById('reportResults');
+        resultsContainer.innerHTML = `
+            <div class="report-header">
+                <h3><i class="fas fa-tools"></i> Informe de Mantenimiento</h3>
+                <p class="report-period">Período: ${new Date(filters.startDate).toLocaleDateString()} - ${new Date(filters.endDate).toLocaleDateString()}</p>
+            </div>
+            
+            <div class="report-metrics">
+                <div class="metric-card">
+                    <i class="fas fa-wrench"></i>
+                    <div class="metric-info">
+                        <h4>Total Reparaciones</h4>
+                        <span class="metric-value">${repairs.length}</span>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <i class="fas fa-dollar-sign"></i>
+                    <div class="metric-info">
+                        <h4>Costo Total</h4>
+                        <span class="metric-value">$${totalCost.toLocaleString()}</span>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <i class="fas fa-calculator"></i>
+                    <div class="metric-info">
+                        <h4>Costo Promedio</h4>
+                        <span class="metric-value">$${avgCost.toLocaleString()}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Camión</th>
+                            <th>Tipo</th>
+                            <th>Descripción</th>
+                            <th>Costo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${repairs.map(repair => `
+                            <tr>
+                                <td>${new Date(repair.date).toLocaleDateString()}</td>
+                                <td>Camión ${repair.truckNumber || repair.truckId}</td>
+                                <td>${repair.type}</td>
+                                <td>${repair.description}</td>
+                                <td>$${(repair.cost || 0).toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    generateFuelReport(filters) {
+        const fuelRecords = this.getFilteredFuelRecords(filters);
+        const totalLiters = fuelRecords.reduce((sum, fuel) => sum + fuel.liters, 0);
+        const totalCost = fuelRecords.reduce((sum, fuel) => sum + (fuel.cost || 0), 0);
+        const avgPrice = totalLiters > 0 ? totalCost / totalLiters : 0;
+        
+        const resultsContainer = document.getElementById('reportResults');
+        resultsContainer.innerHTML = `
+            <div class="report-header">
+                <h3><i class="fas fa-gas-pump"></i> Informe de Consumo de Combustible</h3>
+                <p class="report-period">Período: ${new Date(filters.startDate).toLocaleDateString()} - ${new Date(filters.endDate).toLocaleDateString()}</p>
+            </div>
+            
+            <div class="report-metrics">
+                <div class="metric-card">
+                    <i class="fas fa-tint"></i>
+                    <div class="metric-info">
+                        <h4>Total Litros</h4>
+                        <span class="metric-value">${totalLiters.toFixed(1)} L</span>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <i class="fas fa-dollar-sign"></i>
+                    <div class="metric-info">
+                        <h4>Costo Total</h4>
+                        <span class="metric-value">$${totalCost.toLocaleString()}</span>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <i class="fas fa-calculator"></i>
+                    <div class="metric-info">
+                        <h4>Precio Promedio/L</h4>
+                        <span class="metric-value">$${avgPrice.toFixed(2)}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Camión</th>
+                            <th>Litros</th>
+                            <th>Precio/L</th>
+                            <th>Costo Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${fuelRecords.map(fuel => `
+                            <tr>
+                                <td>${new Date(fuel.date).toLocaleDateString()}</td>
+                                <td>Camión ${fuel.truckNumber || fuel.truckId}</td>
+                                <td>${fuel.liters.toFixed(1)} L</td>
+                                <td>$${(fuel.cost / fuel.liters).toFixed(2)}</td>
+                                <td>$${(fuel.cost || 0).toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    generateDocumentsReport() {
+        const trucks = JSON.parse(localStorage.getItem('trucks') || '[]');
+        const drivers = JSON.parse(localStorage.getItem('drivers') || '[]');
+        
+        const resultsContainer = document.getElementById('reportResults');
+        resultsContainer.innerHTML = `
+            <div class="report-header">
+                <h3><i class="fas fa-file-alt"></i> Estado de Documentos</h3>
+                <p class="report-period">Generado el: ${new Date().toLocaleDateString()}</p>
+            </div>
+            
+            <div class="documents-section">
+                <h4>Documentos de Camiones</h4>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Camión</th>
+                                <th>Patente</th>
+                                <th>Revisión Técnica</th>
+                                <th>Seguro</th>
+                                <th>Permiso Circulación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${trucks.map(truck => `
+                                <tr>
+                                    <td>Camión ${truck.number}</td>
+                                    <td>${truck.plate}</td>
+                                    <td class="${this.getDocumentStatus(truck.technicalReview)}">
+                                        ${truck.technicalReview ? new Date(truck.technicalReview).toLocaleDateString() : 'No registrada'}
+                                    </td>
+                                    <td class="${this.getDocumentStatus(truck.insuranceDate)}">
+                                        ${truck.insuranceDate ? new Date(truck.insuranceDate).toLocaleDateString() : 'No registrado'}
+                                    </td>
+                                    <td class="${this.getDocumentStatus(truck.circulationPermitDate)}">
+                                        ${truck.circulationPermitDate ? new Date(truck.circulationPermitDate).toLocaleDateString() : 'No registrado'}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="documents-section">
+                <h4>Documentos de Conductores</h4>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Conductor</th>
+                                <th>RUT</th>
+                                <th>Licencia</th>
+                                <th>Vencimiento</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${drivers.map(driver => `
+                                <tr>
+                                    <td>${driver.name}</td>
+                                    <td>${driver.rut}</td>
+                                    <td>${driver.licenseType}</td>
+                                    <td class="${this.getDocumentStatus(driver.licenseExpiry)}">
+                                        ${driver.licenseExpiry ? new Date(driver.licenseExpiry).toLocaleDateString() : 'No registrada'}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+    
+    generateAlertsReport() {
+        const alerts = this.generateAlerts();
+        
+        const resultsContainer = document.getElementById('reportResults');
+        resultsContainer.innerHTML = `
+            <div class="report-header">
+                <h3><i class="fas fa-exclamation-triangle"></i> Alertas y Vencimientos</h3>
+                <p class="report-period">Generado el: ${new Date().toLocaleDateString()}</p>
+            </div>
+            
+            <div class="alerts-summary">
+                <div class="alert-metric critical">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <div>
+                        <h4>Críticas</h4>
+                        <span>${alerts.filter(a => a.priority === 'high').length}</span>
+                    </div>
+                </div>
+                <div class="alert-metric warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <div>
+                        <h4>Advertencias</h4>
+                        <span>${alerts.filter(a => a.priority === 'medium').length}</span>
+                    </div>
+                </div>
+                <div class="alert-metric info">
+                    <i class="fas fa-info-circle"></i>
+                    <div>
+                        <h4>Informativas</h4>
+                        <span>${alerts.filter(a => a.priority === 'low').length}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alerts-list">
+                ${alerts.map(alert => `
+                    <div class="alert-item ${alert.priority}">
+                        <div class="alert-icon">
+                            <i class="fas ${alert.priority === 'high' ? 'fa-exclamation-circle' : alert.priority === 'medium' ? 'fa-exclamation-triangle' : 'fa-info-circle'}"></i>
+                        </div>
+                        <div class="alert-content">
+                            <h4>${alert.title}</h4>
+                            <p>${alert.message}</p>
+                            <small>Categoría: ${alert.category}</small>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    getDocumentStatus(date) {
+        if (!date) return 'missing';
+        
+        const docDate = new Date(date);
+        const today = new Date();
+        const diffTime = docDate - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays < 0) return 'expired';
+        if (diffDays <= 15) return 'expiring';
+        return 'valid';
+    }
+
     // Utilidades
     closeModal() {
-        document.getElementById('modalContainer').innerHTML = '';
+        const modalContainer = document.getElementById('modalContainer');
+        if (modalContainer) {
+            modalContainer.innerHTML = '';
+        }
+    }
+
+    viewInvoice(type, recordId) {
+        // Simular la visualización de la imagen/factura
+        const modalHTML = `
+            <div class="modal active">
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-image"></i> Ver ${type === 'repair' ? 'Fotos' : 'Factura'}</h2>
+                        <button class="modal-close" onclick="fleetManager.closeModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="text-align: center; padding: 40px;">
+                        <div style="background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 10px; padding: 40px; margin: 20px 0;">
+                            <i class="fas fa-image" style="font-size: 4rem; color: #6c757d; margin-bottom: 20px;"></i>
+                            <h3 style="color: #6c757d; margin-bottom: 10px;">Vista previa de imagen</h3>
+                            <p style="color: #6c757d;">ID del registro: ${recordId}</p>
+                            <p style="color: #6c757d; font-size: 0.9rem;">En una aplicación real, aquí se mostraría la imagen cargada</p>
+                        </div>
+                        <div style="margin-top: 30px;">
+                            <button class="btn-secondary" onclick="fleetManager.closeModal()">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHTML;
+    }
+    
+    // Función utilitaria para mostrar modales de manera segura
+    showModal(modalHTML) {
+        const modalContainer = document.getElementById('modalContainer');
+        if (!modalContainer) {
+            console.error('Modal container not found');
+            return false;
+        }
+        modalContainer.innerHTML = modalHTML;
+        return true;
     }
 
     formatCurrency(amount) {

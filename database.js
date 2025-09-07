@@ -265,7 +265,7 @@ function createExtendedFleetManager() {
                     <td>${fuelRecord.liters?.toLocaleString() || 0} L</td>
                     <td>$${fuelRecord.cost?.toLocaleString() || 0}</td>
                     <td>${fuelRecord.km?.toLocaleString() || 0} km</td>
-                    <td>${fuelRecord.invoice ? '<i class="fas fa-image text-success"></i>' : '<i class="fas fa-times text-danger"></i>'}</td>
+                    <td>${fuelRecord.invoice ? '<a href="#" onclick="fleetManager.viewInvoice(\'fuel\', ' + fuelRecord.id + ')" style="color: #28a745; text-decoration: none;"><i class="fas fa-image text-success"></i></a>' : '<i class="fas fa-times text-danger"></i>'}</td>
                     <td class="action-buttons">
                         ${this.currentUser.role === 'administrador' ? `
                             <button class="btn-edit" onclick="fleetManager.editFuel(${fuelRecord.id})"><i class="fas fa-edit"></i></button>
@@ -374,7 +374,7 @@ function createExtendedFleetManager() {
                     <td>${adblueRecord.liters?.toLocaleString() || 0} L</td>
                     <td>$${adblueRecord.cost?.toLocaleString() || 0}</td>
                     <td>${adblueRecord.km?.toLocaleString() || 0} km</td>
-                    <td>${adblueRecord.invoice ? '<i class="fas fa-image text-success"></i>' : '<i class="fas fa-times text-danger"></i>'}</td>
+                    <td>${adblueRecord.invoice ? '<a href="#" onclick="fleetManager.viewInvoice(\'adblue\', ' + adblueRecord.id + ')" style="color: #28a745; text-decoration: none;"><i class="fas fa-image text-success"></i></a>' : '<i class="fas fa-times text-danger"></i>'}</td>
                     <td class="action-buttons">
                         ${this.currentUser.role === 'administrador' ? `
                             <button class="btn-edit" onclick="fleetManager.editAdBlue(${adblueRecord.id})"><i class="fas fa-edit"></i></button>
@@ -482,7 +482,7 @@ function createExtendedFleetManager() {
                     <td>Camión ${truck?.number || 'N/A'}</td>
                     <td>$${oilRecord.cost?.toLocaleString() || 0}</td>
                     <td>${oilRecord.observations || 'N/A'}</td>
-                    <td>${oilRecord.invoice ? '<i class="fas fa-image text-success"></i>' : '<i class="fas fa-times text-danger"></i>'}</td>
+                    <td>${oilRecord.invoice ? '<a href="#" onclick="fleetManager.viewInvoice(\'oil\', ' + oilRecord.id + ')" style="color: #28a745; text-decoration: none;"><i class="fas fa-image text-success"></i></a>' : '<i class="fas fa-times text-danger"></i>'}</td>
                     <td class="action-buttons">
                         ${this.currentUser.role === 'administrador' ? `
                             <button class="btn-edit" onclick="fleetManager.editOil(${oilRecord.id})"><i class="fas fa-edit"></i></button>

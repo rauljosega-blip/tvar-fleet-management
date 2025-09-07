@@ -65,6 +65,28 @@ class DatabaseAdapter {
             console.error('Error removing data:', error);
         }
     }
+
+    // Obtener todos los elementos de una colección
+    async getAll(collection) {
+        try {
+            const data = await this.getItem(collection);
+            return data ? JSON.parse(data) : [];
+        } catch (error) {
+            console.error(`Error getting all ${collection}:`, error);
+            return [];
+        }
+    }
+
+    // Guardar todos los elementos de una colección
+    async saveAll(collection, data) {
+        try {
+            const jsonData = JSON.stringify(data);
+            await this.setItem(collection, jsonData);
+        } catch (error) {
+            console.error(`Error saving all ${collection}:`, error);
+            throw error;
+        }
+    }
 }
 
 // Crear instancia global

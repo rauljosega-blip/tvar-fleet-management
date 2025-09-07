@@ -14,7 +14,7 @@
         <div class="header-content">
             <div class="logo">
                 <i class="fas fa-truck"></i>
-                <h1>TVAR Fleet Manager</h1>
+                <h1>Sistema de gestion TVAR</h1>
             </div>
             <div class="user-info">
                 <span id="currentUser">Usuario: Administrador</span>
@@ -167,6 +167,8 @@
                                 <th>Nombre Completo</th>
                                 <th>RUT</th>
                                 <th>Fecha Contratación</th>
+                                <th>Número de Licencia</th>
+                                <th>Vencimiento Licencia</th>
                                 <th>Camión Asignado</th>
                                 <th>Acciones</th>
                             </tr>
@@ -370,29 +372,152 @@
         <section id="informes" class="content-section">
             <div class="section-header">
                 <h2><i class="fas fa-chart-bar"></i> Informes y Analíticas</h2>
+                <p class="section-description">Genera informes detallados y analiza el rendimiento de tu flota</p>
             </div>
             
-            <div class="report-controls">
-                <div class="form-group">
-                    <label>Tipo de Informe:</label>
-                    <select id="reportType">
-                        <option value="individual">Individual por Camión</option>
-                        <option value="comparative">Comparativo</option>
-                        <option value="driver">Rendimiento de Conductor</option>
-                    </select>
+            <!-- Categorías de Informes -->
+            <div class="report-categories">
+                <div class="category-card" data-category="operational">
+                    <div class="category-header">
+                        <i class="fas fa-route"></i>
+                        <h3>Informes Operacionales</h3>
+                    </div>
+                    <p>Análisis de operaciones, rendimiento y productividad</p>
+                    <div class="category-options">
+                        <button class="report-option" data-type="individual">
+                            <i class="fas fa-truck"></i>
+                            <span>Individual por Camión</span>
+                        </button>
+                        <button class="report-option" data-type="comparative">
+                            <i class="fas fa-balance-scale"></i>
+                            <span>Comparativo de Flota</span>
+                        </button>
+                        <button class="report-option" data-type="driver">
+                            <i class="fas fa-user-tie"></i>
+                            <span>Rendimiento de Conductores</span>
+                        </button>
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    <label>Período:</label>
-                    <select id="reportPeriod">
-                        <option value="monthly">Mensual</option>
-                        <option value="annual">Anual</option>
-                    </select>
+                <div class="category-card" data-category="financial">
+                    <div class="category-header">
+                        <i class="fas fa-dollar-sign"></i>
+                        <h3>Informes Financieros</h3>
+                    </div>
+                    <p>Análisis de costos, gastos e ingresos</p>
+                    <div class="category-options">
+                        <button class="report-option" data-type="fuel-costs">
+                            <i class="fas fa-gas-pump"></i>
+                            <span>Costos de Combustible</span>
+                        </button>
+                        <button class="report-option" data-type="maintenance-costs">
+                            <i class="fas fa-tools"></i>
+                            <span>Gastos de Mantenimiento</span>
+                        </button>
+                        <button class="report-option" data-type="profitability">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Rentabilidad por Camión</span>
+                        </button>
+                    </div>
                 </div>
                 
-                <button id="generateReportBtn" class="btn-primary">
-                    <i class="fas fa-chart-line"></i> Generar Informe
-                </button>
+                <div class="category-card" data-category="compliance">
+                    <div class="category-header">
+                        <i class="fas fa-clipboard-check"></i>
+                        <h3>Informes de Cumplimiento</h3>
+                    </div>
+                    <p>Documentación, revisiones y alertas</p>
+                    <div class="category-options">
+                        <button class="report-option" data-type="technical-review">
+                            <i class="fas fa-certificate"></i>
+                            <span>Revisiones Técnicas</span>
+                        </button>
+                        <button class="report-option" data-type="documents">
+                            <i class="fas fa-file-alt"></i>
+                            <span>Estado de Documentos</span>
+                        </button>
+                        <button class="report-option" data-type="alerts">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span>Alertas y Vencimientos</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Panel de Configuración del Informe -->
+            <div id="reportConfigPanel" class="report-config-panel" style="display: none;">
+                <div class="config-header">
+                    <h3 id="selectedReportTitle">Configurar Informe</h3>
+                    <button id="closeConfigPanel" class="btn-close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="config-content">
+                    <div class="config-row">
+                        <div class="form-group">
+                            <label>Período de Análisis:</label>
+                            <select id="reportPeriod">
+                                <option value="current-month">Mes Actual</option>
+                                <option value="last-month">Mes Anterior</option>
+                                <option value="last-3-months">Últimos 3 Meses</option>
+                                <option value="last-6-months">Últimos 6 Meses</option>
+                                <option value="current-year">Año Actual</option>
+                                <option value="custom">Período Personalizado</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group" id="customDateRange" style="display: none;">
+                            <label>Rango de Fechas:</label>
+                            <div class="date-range">
+                                <input type="date" id="startDate" placeholder="Fecha inicio">
+                                <span>hasta</span>
+                                <input type="date" id="endDate" placeholder="Fecha fin">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="config-row" id="truckFilterRow">
+                        <div class="form-group">
+                            <label>Filtrar por Camión:</label>
+                            <select id="reportTruckFilter">
+                                <option value="all">Todos los Camiones</option>
+                                <!-- Se llenarán dinámicamente -->
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="config-row" id="driverFilterRow" style="display: none;">
+                        <div class="form-group">
+                            <label>Filtrar por Conductor:</label>
+                            <select id="reportDriverFilter">
+                                <option value="all">Todos los Conductores</option>
+                                <!-- Se llenarán dinámicamente -->
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="config-row" id="technicalReviewFilterRow" style="display: none;">
+                        <div class="form-group">
+                            <label>Estado de Revisiones:</label>
+                            <select id="technicalReviewFilter">
+                                <option value="all">Todas las Revisiones</option>
+                                <option value="valid">Vigentes</option>
+                                <option value="expiring">Próximas a Vencer (15 días)</option>
+                                <option value="expired">Vencidas</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="config-actions">
+                        <button id="generateReportBtn" class="btn-primary">
+                            <i class="fas fa-chart-line"></i> Generar Informe
+                        </button>
+                        <button id="exportReportBtn" class="btn-secondary" style="display: none;">
+                            <i class="fas fa-download"></i> Exportar PDF
+                        </button>
+                    </div>
+                </div>
             </div>
             
             <div id="reportResults" class="report-results">
@@ -404,7 +529,6 @@
     <!-- Modals -->
     <div id="modalContainer"></div>
 
-    <script src="database.js"></script>
     <script>
         // Inicializar con la versión extendida y optimizaciones
         let fleetManager;
@@ -491,7 +615,8 @@
     </script>
     
     <!-- Database Adapter for Production -->
-    <script src="db-adapter.js"></script>
     <script src="app.js"></script>
+    <script src="database.js"></script>
+    <script src="db-adapter.js"></script>
 </body>
 </html>
