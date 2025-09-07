@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TVAR - Gestión de Flota de Reparto</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-truck"></i>
+                <h1>TVAR Fleet Manager</h1>
+            </div>
+            <div class="user-info">
+                <span id="currentUser">Usuario: Administrador</span>
+                <button id="logoutBtn" class="btn-logout">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <h2><i class="fas fa-user-lock"></i> Iniciar Sesión</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Usuario:</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Contraseña:</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" class="btn-primary">Ingresar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar">
+        <ul class="nav-menu">
+            <li><a href="#dashboard" class="nav-link active" data-section="dashboard">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </a></li>
+            <li id="usuarios-nav" style="display: none;"><a href="#usuarios" class="nav-link" data-section="usuarios">
+                <i class="fas fa-users"></i> Usuarios
+            </a></li>
+            <li><a href="#flota" class="nav-link" data-section="flota">
+                <i class="fas fa-truck"></i> Gestión de Flota
+            </a></li>
+            <li><a href="#operaciones" class="nav-link" data-section="operaciones">
+                <i class="fas fa-clipboard-list"></i> Operaciones
+            </a></li>
+            <li><a href="#mantenimiento" class="nav-link" data-section="mantenimiento">
+                <i class="fas fa-tools"></i> Mantenimiento
+            </a></li>
+            <li><a href="#documentos" class="nav-link" data-section="documentos">
+                <i class="fas fa-file-alt"></i> Documentos
+            </a></li>
+            <li><a href="#informes" class="nav-link" data-section="informes">
+                <i class="fas fa-chart-bar"></i> Informes
+            </a></li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="content-section active">
+            <h2><i class="fas fa-tachometer-alt"></i> Dashboard</h2>
+            <div class="dashboard-grid">
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Flota Total</h3>
+                        <i class="fas fa-truck"></i>
+                    </div>
+                    <div class="card-value" id="totalTrucks">0</div>
+                </div>
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Conductores</h3>
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="card-value" id="totalDrivers">0</div>
+                </div>
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Alertas Activas</h3>
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="card-value" id="totalAlerts">0</div>
+                </div>
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Km del Mes</h3>
+                        <i class="fas fa-road"></i>
+                    </div>
+                    <div class="card-value" id="monthlyKm">0</div>
+                </div>
+            </div>
+            
+            <div class="alerts-section">
+                <h3><i class="fas fa-bell"></i> Alertas Recientes</h3>
+                <div id="alertsList" class="alerts-list">
+                    <!-- Alertas se cargarán dinámicamente -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Usuarios Section -->
+        <section id="usuarios" class="content-section">
+            <div class="section-header">
+                <h2><i class="fas fa-users"></i> Gestión de Usuarios</h2>
+                <button id="addUserBtn" class="btn-primary">
+                    <i class="fas fa-plus"></i> Agregar Usuario
+                </button>
+            </div>
+            <div class="table-container">
+                <table id="usersTable" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Rol</th>
+                            <th>Fecha Creación</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Usuarios se cargarán dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Flota Section -->
+        <section id="flota" class="content-section">
+            <div class="section-header">
+                <h2><i class="fas fa-truck"></i> Gestión de Flota</h2>
+                <div class="section-buttons">
+                    <button id="addDriverBtn" class="btn-primary">
+                        <i class="fas fa-user-plus"></i> Agregar Conductor
+                    </button>
+                    <button id="addTruckBtn" class="btn-primary">
+                        <i class="fas fa-truck"></i> Agregar Camión
+                    </button>
+                </div>
+            </div>
+            
+            <div class="tabs">
+                <button class="tab-button active" data-tab="conductores">Conductores</button>
+                <button class="tab-button" data-tab="camiones">Camiones</button>
+            </div>
+            
+            <div id="conductores" class="tab-content active">
+                <div class="table-container">
+                    <table id="driversTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Nombre Completo</th>
+                                <th>RUT</th>
+                                <th>Fecha Contratación</th>
+                                <th>Camión Asignado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Conductores se cargarán dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="camiones" class="tab-content">
+                <div class="table-container">
+                    <table id="trucksTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>N° Camión</th>
+                                <th>Marca/Modelo</th>
+                                <th>Año</th>
+                                <th>Patente</th>
+                                <th>Capacidad</th>
+                                <th>Modalidad</th>
+                                <th>Conductor</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Camiones se cargarán dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Operaciones Section -->
+        <section id="operaciones" class="content-section">
+            <div class="section-header">
+                <h2><i class="fas fa-clipboard-list"></i> Operaciones Mensuales</h2>
+                <button id="addOperationBtn" class="btn-primary">
+                    <i class="fas fa-plus"></i> Registrar Operación
+                </button>
+            </div>
+            
+            <div class="filters">
+                <select id="monthFilter">
+                    <option value="">Todos los meses</option>
+                </select>
+                <select id="truckFilter">
+                    <option value="">Todos los camiones</option>
+                </select>
+            </div>
+            
+            <div class="table-container">
+                <table id="operationsTable" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Mes/Año</th>
+                            <th>Camión</th>
+                            <th>Productos</th>
+                            <th>Clientes</th>
+                            <th>Recargues</th>
+                            <th>Km Final</th>
+                            <th>Km Mensual</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Operaciones se cargarán dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Mantenimiento Section -->
+        <section id="mantenimiento" class="content-section">
+            <div class="section-header">
+                <h2><i class="fas fa-tools"></i> Mantenimiento y Gastos</h2>
+                <div class="section-buttons">
+                    <button id="addRepairBtn" class="btn-primary">
+                        <i class="fas fa-wrench"></i> Reparación
+                    </button>
+                    <button id="addFuelBtn" class="btn-primary">
+                        <i class="fas fa-gas-pump"></i> Combustible
+                    </button>
+                    <button id="addAdBlueBtn" class="btn-primary">
+                        <i class="fas fa-tint"></i> AdBlue
+                    </button>
+                    <button id="addOilBtn" class="btn-primary">
+                        <i class="fas fa-oil-can"></i> Aceite
+                    </button>
+                </div>
+            </div>
+            
+            <div class="tabs">
+                <button class="tab-button active" data-tab="reparaciones">Reparaciones</button>
+                <button class="tab-button" data-tab="combustible">Combustible</button>
+                <button class="tab-button" data-tab="adblue">AdBlue</button>
+                <button class="tab-button" data-tab="aceite">Aceite</button>
+            </div>
+            
+            <div id="reparaciones" class="tab-content active">
+                <div class="table-container">
+                    <table id="repairsTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Camión</th>
+                                <th>Observaciones</th>
+                                <th>Costo (CLP)</th>
+                                <th>Kilometraje</th>
+                                <th>Fotos</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="combustible" class="tab-content">
+                <div class="table-container">
+                    <table id="fuelTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Camión</th>
+                                <th>Litros</th>
+                                <th>Costo (CLP)</th>
+                                <th>Kilometraje</th>
+                                <th>Factura</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="adblue" class="tab-content">
+                <div class="table-container">
+                    <table id="adblueTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Camión</th>
+                                <th>Litros</th>
+                                <th>Costo (CLP)</th>
+                                <th>Kilometraje</th>
+                                <th>Factura</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="aceite" class="tab-content">
+                <div class="table-container">
+                    <table id="oilTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Camión</th>
+                                <th>Costo (CLP)</th>
+                                <th>Observaciones</th>
+                                <th>Factura</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Documentos Section -->
+        <section id="documentos" class="content-section">
+            <div class="section-header">
+                <h2><i class="fas fa-file-alt"></i> Documentos y Alertas</h2>
+            </div>
+            
+            <div class="alerts-grid">
+                <div class="alert-card">
+                    <h3><i class="fas fa-calendar-times"></i> Documentos por Vencer</h3>
+                    <div id="documentAlerts" class="alert-list">
+                        <!-- Alertas de documentos -->
+                    </div>
+                </div>
+                
+                <div class="alert-card">
+                    <h3><i class="fas fa-oil-can"></i> Mantenimiento por Kilometraje</h3>
+                    <div id="maintenanceAlerts" class="alert-list">
+                        <!-- Alertas de mantenimiento -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Informes Section -->
+        <section id="informes" class="content-section">
+            <div class="section-header">
+                <h2><i class="fas fa-chart-bar"></i> Informes y Analíticas</h2>
+            </div>
+            
+            <div class="report-controls">
+                <div class="form-group">
+                    <label>Tipo de Informe:</label>
+                    <select id="reportType">
+                        <option value="individual">Individual por Camión</option>
+                        <option value="comparative">Comparativo</option>
+                        <option value="driver">Rendimiento de Conductor</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Período:</label>
+                    <select id="reportPeriod">
+                        <option value="monthly">Mensual</option>
+                        <option value="annual">Anual</option>
+                    </select>
+                </div>
+                
+                <button id="generateReportBtn" class="btn-primary">
+                    <i class="fas fa-chart-line"></i> Generar Informe
+                </button>
+            </div>
+            
+            <div id="reportResults" class="report-results">
+                <!-- Resultados de informes se mostrarán aquí -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Modals -->
+    <div id="modalContainer"></div>
+
+    <script src="database.js"></script>
+    <script>
+        // Inicializar con la versión extendida y optimizaciones
+        let fleetManager;
+        
+        // Mostrar loader inicial
+        function showLoader() {
+            const loader = document.createElement('div');
+            loader.id = 'app-loader';
+            loader.innerHTML = `
+                <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column;">
+                    <div style="width: 50px; height: 50px; border: 3px solid #e2e8f0; border-top: 3px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <p style="margin-top: 1rem; color: #64748b; font-weight: 500;">Cargando TVAR...</p>
+                </div>
+                <style>
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                </style>
+            `;
+            document.body.appendChild(loader);
+        }
+        
+        function hideLoader() {
+            const loader = document.getElementById('app-loader');
+            if (loader) {
+                loader.style.opacity = '0';
+                loader.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => loader.remove(), 300);
+            }
+        }
+        
+        // Mostrar loader inmediatamente
+        showLoader();
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const ExtendedFleetManager = createExtendedFleetManager();
+            if (ExtendedFleetManager) {
+                fleetManager = new ExtendedFleetManager();
+            } else {
+                console.error('No se pudo crear FleetManager extendido');
+                fleetManager = new FleetManager();
+            }
+            
+            // Hacer disponible globalmente para los event handlers inline
+            window.fleetManager = fleetManager;
+            
+            // Agregar animaciones de entrada a las secciones
+            setTimeout(() => {
+                const sections = document.querySelectorAll('.content-section, .dashboard-card, .table-container');
+                sections.forEach((section, index) => {
+                    section.style.opacity = '0';
+                    section.style.transform = 'translateY(20px)';
+                    section.style.transition = 'all 0.6s ease';
+                    
+                    setTimeout(() => {
+                        section.style.opacity = '1';
+                        section.style.transform = 'translateY(0)';
+                    }, index * 100);
+                });
+                
+                hideLoader();
+            }, 800);
+        });
+        
+        // Optimización de rendimiento: lazy loading para gráficos
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '50px'
+        };
+        
+        const chartObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('animate-fade-in');
+                }
+            });
+        }, observerOptions);
+        
+        // Observar elementos cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const charts = document.querySelectorAll('canvas, .chart-container');
+                charts.forEach(chart => chartObserver.observe(chart));
+            }, 1000);
+        });
+    </script>
+    
+    <!-- Database Adapter for Production -->
+    <script src="db-adapter.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
